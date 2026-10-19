@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | **3단 적층 테스트 (Arduino)** | Arduino 보드 + CAN BUS Shield + Ethernet Shield로 수행한 초기 시험용 코드 | [MotorController.ino](MotorController.ino) |
 | **통합 PCB용 AVR C** | ATmega328P 기반 제작 PCB에서 최종 테스트를 위해 준비한 Arduino 비의존 펌웨어 | [PCB_AVR/avr](PCB_AVR/avr) |
+| **PCB AVR RPM 피드백 추가 (실물 미검증)** | 실측 모터 RPM의 PC UDP 전송 기능을 추가한 별도 소스코드 (새 HEX 미포함) | [엔코더값·속도값 PC 전송 추가](PCB_AVR_엔코더값_속도값_PC전송추가/README.md) |
 
 **PCB용 자료:** [소스 설명](PCB_AVR/avr/README_KO.md) · [굽기용 HEX](PCB_AVR/avr/firmware/motor_controller.hex) · [ELF](PCB_AVR/avr/firmware/motor_controller.elf) · [검증 결과](PCB_AVR/검증결과.md) · [전달받은 ZIP 원본](PCB_AVR/AVR_result_original.zip)
 
@@ -108,16 +109,12 @@ PC   (10.177.21.1) ── UDP:5000 ─┘
 > 코드 내부의 타임아웃 설명 주석에 `500ms`라고 적힌 부분이 있으나,
 > **실제 상수 값은 `1000ms`** 입니다.
 
-## 조향팀 연동 시 꼭 확인할 내용
+## 조향팀 연동 참고사항
 
-- 이 파일은 **모터 제어 코드**입니다. 조향 제어용 코드가 아닙니다.
-- MANUAL의 `joy_y`로 조향값을 계산하는 부분이 있지만 **실제로 송신하지 않습니다**.
-- AUTO의 `steer` 값도 파싱 후 **사용하지 않습니다**.
-- **모터 엔코더 / 실측 RPM을 PC 또는 조향팀으로 되돌려 보내는 기능은 없습니다.**
-  코드의 `target_speed_rpm`은 **목표 명령값**이지 실제 측정값이 아닙니다.
-- ASMS/PC 발신 IP와 패킷 길이가 일치해야 패킷이 처리됩니다.
-- 타임아웃 시 모터 정지 명령을 사용하지만, 소프트웨어 안전 로직만으로
-  차량 안전을 보장할 수는 없습니다.
+- 본 코드는 BAKU 자율주행 차량의 **구동 모터 제어**를 담당합니다.
+- ASMS/PC에서 **UDP** 주행 명령을 수신하고, **CAN** 통신으로 모터를 제어합니다.
+- 조향 제어는 별도 시스템에서 수행하며, **본 코드에서는 조향 명령을 전송하지 않습니다**.
+- **실측 모터 RPM의 PC 전송 기능**은 [별도 PCB AVR 수정 버전](PCB_AVR_엔코더값_속도값_PC전송추가/README.md)에 추가했습니다. **기존 Arduino 및 PCB AVR 원본에는 해당 기능이 없습니다.** 수정 버전은 소프트웨어 모의 테스트까지만 완료했으며, 실제 PCB·모터 동작은 아직 검증되지 않았습니다.
 
 ## 개발 환경 및 주의사항
 
