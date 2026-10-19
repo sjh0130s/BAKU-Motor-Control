@@ -1,0 +1,18 @@
+avr-gcc -mmcu=atmega328p -DF_CPU=16000000UL -std=gnu11 -Os -Wall -Wextra -Werror -ffunction-sections -fdata-sections -fstack-usage -c main.c -o ../../work/avr-build/main.o
+avr-gcc -mmcu=atmega328p -DF_CPU=16000000UL -std=gnu11 -Os -Wall -Wextra -Werror -ffunction-sections -fdata-sections -fstack-usage -c board.c -o ../../work/avr-build/board.o
+avr-gcc -mmcu=atmega328p -DF_CPU=16000000UL -std=gnu11 -Os -Wall -Wextra -Werror -ffunction-sections -fdata-sections -fstack-usage -c w5500.c -o ../../work/avr-build/w5500.o
+avr-gcc -mmcu=atmega328p -DF_CPU=16000000UL -std=gnu11 -Os -Wall -Wextra -Werror -ffunction-sections -fdata-sections -fstack-usage -c mcp2515.c -o ../../work/avr-build/mcp2515.o
+avr-gcc -mmcu=atmega328p -Wl,--gc-sections,-Map,../../work/avr-build/motor_controller.map ../../work/avr-build/main.o ../../work/avr-build/board.o ../../work/avr-build/w5500.o ../../work/avr-build/mcp2515.o -o ../../work/avr-build/motor_controller.elf
+avr-objcopy -O ihex -R .eeprom ../../work/avr-build/motor_controller.elf ../../work/avr-build/motor_controller.hex
+avr-size -C --mcu=atmega328p ../../work/avr-build/motor_controller.elf
+AVR Memory Usage
+----------------
+Device: atmega328p
+
+Program:    6442 bytes (19.7% Full)
+(.text + .data + .bootloader)
+
+Data:        395 bytes (19.3% Full)
+(.data + .bss + .noinit)
+
+

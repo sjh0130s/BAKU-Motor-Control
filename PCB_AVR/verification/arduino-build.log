@@ -1,0 +1,46 @@
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2515_can.cpp: In member function 'byte mcp2515_can::mcp2515_getNextFreeTXBuf(byte*)':
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2515_can.cpp:1047:47: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+     for (i = MCP_N_TXBUFFERS - nReservedTx; i >= 0; i--) {
+                                             ~~^~~~
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp: In member function 'byte mcp2518fd::mcp2518fd_sendMsg(const byte*, byte, long unsigned int, byte, byte, bool)':
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp:1750:60: warning: unused parameter 'wait_sent' [-Wunused-parameter]
+                                   byte ext, byte rtr, bool wait_sent) {
+                                                            ^~~~~~~~~
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp: In member function 'virtual byte mcp2518fd::readMsgBufID(byte, volatile long unsigned int*, volatile byte*, volatile byte*, volatile byte*, volatile byte*)':
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp:2020:35: warning: unused parameter 'status' [-Wunused-parameter]
+ byte mcp2518fd::readMsgBufID(byte status, volatile unsigned long *id,
+                                   ^~~~~~
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp: In member function 'virtual void mcp2518fd::clearBufferTransmitIfFlags(byte)':
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp:2103:49: warning: unused parameter 'flags' [-Wunused-parameter]
+ void mcp2518fd::clearBufferTransmitIfFlags(byte flags) {
+                                                 ^~~~~
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp: In member function 'virtual byte mcp2518fd::sendMsgBuf(byte, long unsigned int, byte, byte, byte, const volatile byte*)':
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp:2115:33: warning: unused parameter 'status' [-Wunused-parameter]
+ byte mcp2518fd::sendMsgBuf(byte status, unsigned long id, byte ext, byte rtr,
+                                 ^~~~~~
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp: In member function 'virtual byte mcp2518fd::checkClearRxStatus(byte*)':
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp:2154:42: warning: unused parameter 'status' [-Wunused-parameter]
+ byte mcp2518fd::checkClearRxStatus(byte *status) {
+                                          ^~~~~~
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp: In member function 'virtual byte mcp2518fd::checkClearTxStatus(byte*, byte)':
+/Users/kwonyoungmin/Documents/Codex/2026-09-20/1-pdf-2-avr-3/work/libraries/Seeed_Arduino_CAN-master/src/mcp2518fd_can.cpp:2166:42: warning: unused parameter 'status' [-Wunused-parameter]
+ byte mcp2518fd::checkClearTxStatus(byte *status, byte iTxBuf) {
+                                          ^~~~~~
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp: In function 'void* operator new(std::size_t, std::nothrow_t)':
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp:59:60: warning: unused parameter 'tag' [-Wunused-parameter]
+ void * operator new(std::size_t size, const std::nothrow_t tag) noexcept {
+                                                            ^~~
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp: In function 'void* operator new [](std::size_t, const std::nothrow_t&)':
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp:68:63: warning: unused parameter 'tag' [-Wunused-parameter]
+ void * operator new[](std::size_t size, const std::nothrow_t& tag) noexcept {
+                                                               ^~~
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp: In function 'void operator delete(void*, const std::nothrow_t&)':
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp:103:55: warning: unused parameter 'tag' [-Wunused-parameter]
+ void operator delete(void* ptr, const std::nothrow_t& tag) noexcept {
+                                                       ^~~
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp: In function 'void operator delete [](void*, const std::nothrow_t&)':
+/Users/kwonyoungmin/Library/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/new.cpp:106:57: warning: unused parameter 'tag' [-Wunused-parameter]
+ void operator delete[](void* ptr, const std::nothrow_t& tag) noexcept {
+                                                         ^~~
+Sketch uses 17198 bytes (53%) of program storage space. Maximum is 32256 bytes.
+Global variables use 764 bytes (37%) of dynamic memory, leaving 1284 bytes for local variables. Maximum is 2048 bytes.

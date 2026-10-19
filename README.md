@@ -1,5 +1,21 @@
 # BAKU Motor Control
 
+## 코드 버전 구분
+
+| 코드 | 목적 | 자료 |
+| --- | --- | --- |
+| **3단 적층 테스트 (Arduino)** | Arduino 보드 + CAN BUS Shield + Ethernet Shield로 수행한 초기 시험용 코드 | [MotorController.ino](MotorController.ino) |
+| **통합 PCB용 AVR C** | ATmega328P 기반 제작 PCB에서 최종 테스트를 위해 준비한 Arduino 비의존 펌웨어 | [PCB_AVR/avr](PCB_AVR/avr) |
+
+**PCB용 자료:** [소스 설명](PCB_AVR/avr/README_KO.md) · [굽기용 HEX](PCB_AVR/avr/firmware/motor_controller.hex) · [ELF](PCB_AVR/avr/firmware/motor_controller.elf) · [검증 결과](PCB_AVR/검증결과.md) · [전달받은 ZIP 원본](PCB_AVR/AVR_result_original.zip)
+
+PCB용 코드는 Arduino 버전과 통신/제어 개념을 공유하지만 **드라이버 및 핀맵이 다릅니다.** 특히 PCB는 Ethernet CS가 **PD7 (D7)** 이고 CAN CS는 **PB1 (D9)** 입니다. 아래 본문에서 Arduino 라이브러리와 D10 Ethernet CS에 관한 내용은 **기존 적층 테스트 버전** 설명입니다.
+
+**검증 상태:** 첨부된 검증 자료에는 2026-09-20 기준 AVR 빌드 및 모의 시험 성공이 기록되어 있으나, 그 과정에서 **실제 PCB 업로드·CAN 버스·모터 구동은 시험하지 않았습니다.** 최종 실차 검증 여부는 별도로 기록해야 합니다. 파일에 유지된 **500 A 전류 지령**과 보드 핀맵, 클록/퓨즈/전원/하드웨어 비상정지는 구동 전에 반드시 확인하세요.
+
+---
+
+
 BAKU 자율주행 차량의 **구동 모터 제어 펌웨어**입니다.
 
 이 저장소에는 ASMS/PC에서 수신한 UDP 명령을 해석하고, ATmega328P와 MCP2515를 통해

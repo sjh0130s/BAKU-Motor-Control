@@ -1,0 +1,9 @@
+PASS: 65536 joystick inputs, AUTO extremes, CAN payloads/life, packet validation,
+      mode transitions, independent 1000/1001 ms deadlines, timer rollover,
+      handshake validation/failure, 50 ms scheduling, init/fault checks.
+PASS: 65536 joystick inputs, AUTO extremes, CAN payloads/life, packet validation,
+      mode transitions, independent 1000/1001 ms deadlines, timer rollover,
+      handshake validation/failure, 50 ms scheduling, init/fault checks.
+PASS: driver SPI model (324 transactions): W5500 init/IP/port, UDP length/drop,
+      RX ring/16-bit wrap, partial/fault/timeout; MCP2515 timing registers,
+      extended ID packing, both RX buffers, RTR/DLC, ACK failure/abort/bus-off.
