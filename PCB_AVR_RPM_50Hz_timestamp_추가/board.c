@@ -18,9 +18,9 @@ void delay_ms(uint16_t ms) {
     uint32_t start = millis();
     while ((uint32_t)(millis() - start) < ms) {}
 }
-void spi_none(void) { PORTD |= _BV(PD7); PORTB |= _BV(PB1); }
+void spi_none(void) { PORTD |= _BV(PD7); PORTB |= _BV(PB2); }
 void spi_eth(void) { spi_none(); PORTD &= (uint8_t)~_BV(PD7); }
-void spi_can(void) { spi_none(); PORTB &= (uint8_t)~_BV(PB1); }
+void spi_can(void) { spi_none(); PORTB &= (uint8_t)~_BV(PB2); }
 uint8_t spi_byte(uint8_t value) {
     SPDR = value;
     while (!(SPSR & _BV(SPIF))) {}
@@ -28,15 +28,15 @@ uint8_t spi_byte(uint8_t value) {
 }
 void board_init(void) {
     cli();
-    /* Raise CS and hardware SS before changing pin direction. */
+    /* Raise Ethernet CS and CAN CS (PB2 is also hardware SS) before setting outputs. */
     PORTD |= _BV(PD7);
-    PORTB |= _BV(PB1) | _BV(PB2);
+    PORTB |= _BV(PB2);
     DDRD |= _BV(PD7);
-    DDRB |= _BV(PB1) | _BV(PB2) | _BV(PB3) | _BV(PB5);
-    DDRB &= (uint8_t)~(_BV(PB0) | _BV(PB4));
+    DDRB |= _BV(PB2) | _BV(PB3) | _BV(PB5);
+    DDRB &= (uint8_t)~(_BV(PB0) | _BV(PB1) | _BV(PB4));
     DDRD &= (uint8_t)~(_BV(PD2) | _BV(PD3) | _BV(PD4));
     PORTD &= (uint8_t)~(_BV(PD2) | _BV(PD3) | _BV(PD4));
-    PORTB &= (uint8_t)~(_BV(PB0) | _BV(PB4));
+    PORTB &= (uint8_t)~(_BV(PB0) | _BV(PB1) | _BV(PB4));
     /* SPI mode 0, MSB first, 4 MHz, no SPI interrupt. */
     SPCR = _BV(SPE) | _BV(MSTR);
     SPSR = 0;
