@@ -14,7 +14,7 @@ static bool ethernet_fault;
 // <int32_t actual_motor_rpm, uint32_t sample_timestamp_ms>, little endian.
 // timestamp는 모터 CAN 데이터를 파싱한 순간의 PCB millis() (부팅 이후 ms).
 // 실제 CAN 업데이트가 더 느리면 동일 샘플/타임스탬프가 반복될 수 있음.
-static const uint8_t SPEED_PC_IP[4] = {10, 177, 21, 1};
+static const uint8_t SPEED_PC_IP[4] = {10, 177, 21, BAKU_PC_IP_LAST_OCTET};
 static const uint32_t SPEED_SEND_PERIOD_MS = 20;
 static const uint32_t SPEED_FEEDBACK_TIMEOUT_MS = 500;
 static int32_t actual_speed_rpm;
@@ -96,6 +96,46 @@ int16_t target_speed_rpm = 0;
 // false : HALT
 bool motor_enable_cmd = false;
 
+/* Final PCB: external pull-ups on PD3/PD4, active-low switch.
+ * 30ms debounce; transition immediately invalidates remote drive commands.
+ */
+enum { HW_THROTTLE = 0, HW_MANUAL = 1, HW_AUTO = 2, HW_INVALID = 3 };
+static uint8_t hw_mode = HW_INVALID;
+static uint8_t mode_candidate = 0xFF;
+static uint32_t mode_candidate_since;
+static bool estop_latched;
+static const uint32_t MODE_DEBOUNCE_MS = 30;
+void sendMotorStop_CAN(void);
+
+static void clear_remote_control(void) {
+  target_speed_rpm = 0;
+  motor_enable_cmd = false;
+  receivedMode = 0;
+  hasAsmsPacket = false;
+  hasPcAutoPacket = false;
+}
+
+static void update_hardware_mode(void) {
+  uint8_t raw = read_mode_pins();
+  uint32_t now = millis();
+  if (raw > HW_INVALID) raw = HW_INVALID;
+  if (raw != mode_candidate) {
+    mode_candidate = raw;
+    mode_candidate_since = now;
+    hw_mode = HW_INVALID;
+    clear_remote_control();
+    if (handshake_ok) sendMotorStop_CAN();
+  }
+  if (hw_mode == HW_INVALID && mode_candidate != HW_INVALID &&
+      (uint32_t)(now - mode_candidate_since) >= MODE_DEBOUNCE_MS) {
+    hw_mode = mode_candidate;
+    clear_remote_control();
+    if (hw_mode == HW_THROTTLE) log_text("[SW] THROTTLE (CAN commands inhibited)\r\n");
+    else if (hw_mode == HW_MANUAL) log_text("[SW] MANUAL\r\n");
+    else log_text("[SW] AUTO\r\n");
+  }
+}
+
 // ===============================
 // 함수 선언
 // ===============================
@@ -123,6 +163,13 @@ void sendMotorStop_CAN();
 
 void enforceControlTimeout() {
   uint32_t now = millis();
+  if (estop_latched || hw_mode == HW_INVALID || hw_mode == HW_THROTTLE ||
+      (hw_mode == HW_MANUAL && receivedMode != 2) ||
+      (hw_mode == HW_AUTO && receivedMode != 1)) {
+    target_speed_rpm = 0;
+    motor_enable_cmd = false;
+    return;
+  }
   if (!hasAsmsPacket || (uint32_t)(now - lastAsmsReceiveTime) > UDP_TIMEOUT_MS) {
     receivedMode = 0;
     hasPcAutoPacket = false;
@@ -279,7 +326,10 @@ void handleAutoMode(
 // ESTOP
 // =====================================================
 void handleEstop() {
-  sendMotorStop_CAN();
+  /* Software ESTOP stays latched until reboot; external E-STOP required. */
+  estop_latched = true;
+  clear_remote_control();
+  if (handshake_ok) sendMotorStop_CAN();
 }
 
 // =====================================================
@@ -439,8 +489,23 @@ void processUdpPacket(void) {
     return;
   }
   if (result == 0) return;
-  const uint8_t asms[4] = {10,177,21,5}, pc[4] = {10,177,21,1};
+  const uint8_t asms[4] = {10,177,21,5};
+  const uint8_t pc[4] = {10,177,21,BAKU_PC_IP_LAST_OCTET};
+  /* ASMS ESTOP accepts 3B or 5B; it must originate from ASMS IP. */
+  if (memcmp(ip, asms, 4) == 0 &&
+      (len == 3 || len == 5) && data[0] == 3) {
+    handleEstop();
+    return;
+  }
+  if (estop_latched) return;
   if (memcmp(ip, asms, 4) == 0 && len == 5) {
+    /* Physical selector is authoritative over UDP mode. */
+    if ((hw_mode == HW_MANUAL && data[0] != 2) ||
+        (hw_mode == HW_AUTO && data[0] != 1) ||
+        (hw_mode != HW_MANUAL && hw_mode != HW_AUTO)) {
+      clear_remote_control();
+      return;
+    }
     lastAsmsReceiveTime = millis();
     hasAsmsPacket = true;
     uint8_t previousMode = receivedMode;
@@ -459,7 +524,7 @@ void processUdpPacket(void) {
       case 3: handleEstop(); break;
       default: sendMotorStop_CAN(); break;
     }
-  } else if (memcmp(ip, pc, 4) == 0 && len == 9) {
+  } else if (hw_mode == HW_AUTO && memcmp(ip, pc, 4) == 0 && len == 9) {
     uint32_t now = millis();
     if (receivedMode != 1 || !hasAsmsPacket ||
         (uint32_t)(now-lastAsmsReceiveTime) > UDP_TIMEOUT_MS) return;
@@ -534,13 +599,14 @@ void sendHandshakeResponse(void) {
 }
 void control_step(void) {
   processCANHandshake();
+  update_hardware_mode();
   enforceControlTimeout();
   processUdpPacket();
   enforceControlTimeout();
   uint32_t now = millis();
   if ((uint32_t)(now-lastMotorSendTime) >= MOTOR_SEND_PERIOD_MS) {
     lastMotorSendTime = now;
-    if (handshake_ok) {
+    if (handshake_ok && (hw_mode != HW_THROTTLE || estop_latched)) {
       sendMotorCommand_CAN(target_speed_rpm, PHASE_CURRENT_REF_A, motor_enable_cmd);
     }
   }
