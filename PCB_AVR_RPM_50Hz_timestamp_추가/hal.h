@@ -2,9 +2,17 @@
 #define HAL_H
 #include <stdint.h>
 #include <stdbool.h>
+/* Vehicle PC is .1. Define BAKU_PC_IP_LAST_OCTET=50 for a test laptop.
+ * A different build definition requires rebuilding and flashing a new HEX. */
+#ifndef BAKU_PC_IP_LAST_OCTET
+#define BAKU_PC_IP_LAST_OCTET 1
+#endif
+#if BAKU_PC_IP_LAST_OCTET < 1 || BAKU_PC_IP_LAST_OCTET > 254 || BAKU_PC_IP_LAST_OCTET == 2 || BAKU_PC_IP_LAST_OCTET == 5
+#error "Invalid PC IP last octet: avoid PCB .2 and ASMS .5"
+#endif
 /* SPI: PD7=ETH_CS, PB2=CAN_CS and hardware SS (output HIGH when idle).
  * PB3=MOSI, PB4=MISO, PB5=SCK. PD2=CAN_INT, PB1=ETH_INT,
- * PB0=ETH_INT1; interrupt pins are inputs (currently polled, not used as ISRs).
+ * PB0 is unconnected in the provided final schematic. Interrupt pins are inputs.
  * PD3/PD4 are unused mode switch inputs with external pull-ups. */
 typedef struct {
     uint32_t id;
@@ -12,6 +20,7 @@ typedef struct {
     bool extended, remote;
 } CanFrame;
 void board_init(void);
+uint8_t read_mode_pins(void);  /* 0 throttle, 1 manual, 2 auto, 3 invalid */
 uint32_t millis(void);
 void delay_ms(uint16_t ms);
 void log_text(const char *text);
