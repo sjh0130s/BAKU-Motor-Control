@@ -2,8 +2,9 @@
 #define HAL_H
 #include <stdint.h>
 #include <stdbool.h>
-/* SPI: PD7=ETH_CS, PB1=CAN_CS, PB2=hardware SS (output HIGH).
- * PB3=MOSI, PB4=MISO, PB5=SCK. PD2/PB0 are interrupt inputs.
+/* SPI: PD7=ETH_CS, PB2=CAN_CS and hardware SS (output HIGH when idle).
+ * PB3=MOSI, PB4=MISO, PB5=SCK. PD2=CAN_INT, PB1=ETH_INT,
+ * PB0=ETH_INT1; interrupt pins are inputs (currently polled, not used as ISRs).
  * PD3/PD4 are unused mode switch inputs with external pull-ups. */
 typedef struct {
     uint32_t id;
