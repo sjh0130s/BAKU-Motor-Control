@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 static uint32_t fake_time;
+static uint8_t fake_switch_mode = 1;  /* MANUAL */
+uint8_t read_mode_pins(void) { return fake_switch_mode; }
 static CanFrame queued_can;
 static bool can_pending;
 static uint8_t queued_ip[4], queued_udp[9];
@@ -68,7 +70,7 @@ int main(void){
   fake_time=4;enqueue_can(MCU_ID,33000,false);control_step();assert(actual_speed_rpm==1000 && hasSpeedFeedback);
   fake_time=19;control_step();assert(speed_sends==0);
   fake_time=20;control_step();assert(speed_sends==1 && last_rpm()==1000 && last_ts()==4);
-  const uint8_t pc[4]={10,177,21,1};assert(memcmp(last_speed_ip,pc,4)==0);
+  const uint8_t pc[4]={10,177,21,BAKU_PC_IP_LAST_OCTET};assert(memcmp(last_speed_ip,pc,4)==0);
   fake_time=39;control_step();assert(speed_sends==1);
   fake_time=40;control_step();assert(speed_sends==2 && last_rpm()==1000 && last_ts()==4); /* same sample retransmitted */
   fake_time=55;enqueue_can(MCU_ID,30500,false);control_step();assert(actual_speed_rpm==-1500 && lastSpeedSampleTimeMs==55);
@@ -84,7 +86,10 @@ int main(void){
   /* Retain original manual command processing, CAN 50ms cadence and HALT. */
   fake_time=646;enqueue_asms(2,-2048);control_step();assert(target_speed_rpm==-1500 && motor_enable_cmd);
   fake_time=696;control_step();assert(last_control_byte==0x03);
-  fake_time=697;enqueue_asms(3,0);control_step();assert(!motor_enable_cmd && last_control_byte==0);
+  fake_time=697;enqueue_asms(3,0);control_step();
+  assert(!motor_enable_cmd && last_control_byte==0 && estop_latched);
+  fake_time=698;enqueue_asms(2,-2048);control_step();
+  assert(!motor_enable_cmd);
   assert(speed_polls>0 && motor_sends>0 && stops>0);
   /* One simulated second with 50Hz fresh CAN feedback and 1ms scheduler ticks. */
   unsigned prior = speed_sends;
@@ -108,6 +113,33 @@ int main(void){
     }
   }
   assert(speed_sends-prior == 50);
-  assert(fresh_count == 20); /* 20 distinct samples but 50 UDP messages */
+  assert(fresh_count == 20);
+
+  estop_latched = false; /* emulate MCU reset in the harness */
+  fake_switch_mode = HW_THROTTLE;
+  fake_time = 4000; control_step();
+  assert(hw_mode == HW_INVALID && !motor_enable_cmd);
+  fake_time = 4031; control_step();
+  assert(hw_mode == HW_THROTTLE && !motor_enable_cmd);
+  unsigned prior_motor = motor_sends;
+  fake_time = 4100; control_step();
+  assert(motor_sends == prior_motor);
+  fake_switch_mode = HW_AUTO;
+  fake_time = 4200; control_step();
+  fake_time = 4231; control_step();
+  assert(hw_mode == HW_AUTO);
+  fake_time = 4232; enqueue_asms(2,-2048); control_step();
+  assert(!motor_enable_cmd);
+  fake_time = 4233; enqueue_asms(1,0); control_step();
+  assert(!motor_enable_cmd);
+  const uint8_t asms_ip[4] = {10,177,21,5};
+  memcpy(queued_ip, asms_ip, 4);
+  queued_len = 3; queued_udp[0] = 3; queued_udp[1] = 0; queued_udp[2] = 0;
+  udp_pending = true; fake_time = 4240; control_step();
+  assert(estop_latched && !motor_enable_cmd);
+  fake_switch_mode = HW_INVALID;
+  fake_time = 4300; control_step();
+  fake_time = 4331; control_step();
+  assert(hw_mode == HW_INVALID && !motor_enable_cmd); /* 20 distinct samples but 50 UDP messages */
   puts("PASS: 20ms 8-byte UDP, RPM+CAN-sample timestamp, repeated timestamp, stale silent, manual/ESTOP, CAN command unchanged");
 }
