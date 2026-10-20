@@ -28,7 +28,7 @@ uint8_t spi_byte(uint8_t value) {
 }
 void board_init(void) {
     cli();
-    /* Raise Ethernet CS and CAN CS (PB2 is also hardware SS) before setting outputs. */
+    /* PB2 is CAN_CS and hardware SS: it must be an output for SPI master. */
     PORTD |= _BV(PD7);
     PORTB |= _BV(PB2);
     DDRD |= _BV(PD7);
@@ -53,6 +53,15 @@ void board_init(void) {
     UCSR0B = _BV(TXEN0) | _BV(RXEN0);
     UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
     sei();
+}
+/* External pull-ups on PD3/PD4: active-low mode selector.
+ * bit0=MANUAL pin PD3 grounded, bit1=AUTO pin PD4 grounded.
+ * 0=THROTTLE, 1=MANUAL, 2=AUTO, 3=INVALID (both switches low).
+ */
+uint8_t read_mode_pins(void) {
+    uint8_t pins = PIND;
+    return (uint8_t)(((pins & _BV(PD3)) ? 0U : 1U) |
+                     ((pins & _BV(PD4)) ? 0U : 2U));
 }
 void log_text(const char *text) {
     while (*text) {
