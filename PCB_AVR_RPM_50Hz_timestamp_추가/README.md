@@ -86,3 +86,15 @@ make clean && make
 4. 별도 하드웨어 비상정지와 안전 제한이 있는 감독 환경에서 실제 모터 시험
 
 이전 코드에서 유지한 `PHASE_CURRENT_REF_A=500.0f`는 모터 드라이버 및 실제 하드웨어 허용 범위가 검증된 값이라는 뜻이 아닙니다.
+
+
+## 최종 PCB 회로도 반영 (2026-10-20)
+
+- 최종 회로도: `SCH_Schematic1_2026-10-20_바쿠모터회로도최종.pdf`. `CAN_CS=PB2`(물리 14번), `ETH_CS=PD7`(11번), `ETH_INT=PB1` 입력, SPI `PB3/PB4/PB5`.
+- PD3/PD4의 외부 10kΩ 풀업 3단 스위치 입력을 30ms 디바운스로 처리. MANUAL(PD3 LOW), AUTO(PD4 LOW), THROTTLE(양쪽 HIGH, 주기적 CAN 주행명령 차단), INVALID(양쪽 LOW, HALT)로 구분. 전환 시 이전 UDP 명령 폐기.
+- ASMS IP에서 온 mode=3 ESTOP(3B 또는 5B)을 소프트웨어 래치로 처리하며 MCU 재부팅 전까지 해제하지 않음. **하드웨어 비상정지 대체 불가.**
+- PC IP는 기본 `10.177.21.1`을 유지. 시험 노트북 `10.177.21.50`에 송신하려면 빌드 심볼 `BAKU_PC_IP_LAST_OCTET=50`을 정의하고 다시 빌드하여 HEX를 기록.
+- RPM UDP 8B, 목표 50Hz 및 CAN 제어 명령 주기 50ms는 유지.
+- 상세 검토와 남은 하드웨어 위험: `HARDWARE_AUDIT_2026-10-20.md`.
+
+**GitHub 소스 변경만으로 PCB의 기존 HEX는 바뀌지 않음. 이 수정본은 AVR 실물 빌드 및 차량 모터 구동 미검증이므로, 검증 전 실차 주행에 사용하지 말 것.**
