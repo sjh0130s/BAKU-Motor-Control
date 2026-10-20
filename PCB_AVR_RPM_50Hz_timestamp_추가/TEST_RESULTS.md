@@ -18,3 +18,11 @@
 | **PCB/실모터/실제 네트워크 전송률 측정** | **NOT RUN** (장비 없음) |
 
 **중요:** 50Hz는 **목표 전송 주기**이며 실제 MCU에서 20ms마다 송신 완료되는지, 모터 속도 피드백이 몇 Hz 들어오는지는 측정하지 않았습니다. UDP 프레임 타임스탬프는 MCU 부팅 기준이며 PC 절대 시간과 동기화되어 있지 않습니다.
+
+
+## 2026-10-20 최종 회로도 대응 로컬 호스트 테스트
+- 기본 PC 목적지 .1: `gcc -std=c11 -Wall -Wextra -Werror -pedantic -I. tests/test_main_host.c` **PASS**
+- 실험실 PC 목적지 .50: 같은 명령에 `-DBAKU_PC_IP_LAST_OCTET=50` 추가 **PASS**
+- W5500 모의 테스트: `gcc -std=c11 -Wall -Wextra -Werror -pedantic -I. tests/test_w5500_host.c w5500.c` **PASS**
+- 추가 항목: 디바운스, 물리 모드 전환, CAN 명령 중지, UDP 모드 일치, ESTOP 래치 및 3B 처리.
+- **미실시:** 실제 AVR GCC 교차 컴파일, 새 HEX 생성, PCB 재업로드, 차량 네트워크 및 모터 검증.
