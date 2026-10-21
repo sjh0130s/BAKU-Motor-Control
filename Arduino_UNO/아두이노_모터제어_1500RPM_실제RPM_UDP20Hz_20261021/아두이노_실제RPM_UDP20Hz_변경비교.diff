@@ -1,0 +1,117 @@
+--- source_Arduino_UNO.txt
++++ BAKU_Arduino_UNO_CAN_ActualRPM_UDP_20Hz_20261021.ino
+@@ -102,6 +102,18 @@
+ unsigned long lastMotorSendTime = 0;
+ 
+ // ===============================
++// 실제 모터 RPM CAN 수신 -> PC UDP 송신 (20Hz)
++// ===============================
++// 목적지 PC IP는 위의 pcIP(10.177.21.1) 사용
++const unsigned int RPM_UDP_DEST_PORT = 5000;
++const unsigned long RPM_UDP_SEND_PERIOD_MS = 50;
++
++unsigned long lastRpmUdpSendTime = 0;
++int32_t actual_motor_rpm = 0;          // CAN 피드백으로 측정된 실제 모터 RPM
++uint32_t actual_rpm_timestamp_ms = 0; // 피드백을 수신하고 RPM을 계산한 millis()
++bool hasNewActualRpm = false;          // 새로운 실제 RPM 수신 여부
++
++// ===============================
+ // 상태 변수
+ // ===============================
+ bool handshake_ok = false;
+@@ -125,6 +137,7 @@
+ 
+ void processCANHandshake();
+ void sendHandshakeResponse();
++void sendActualRpmUdp();
+ 
+ void processUdpPacket();
+ void enforceControlTimeout();
+@@ -227,6 +240,9 @@
+       );
+     }
+   }
++
++  // 5. 새로 수신한 실제 RPM만 PC로 최대 20Hz UDP 전송
++  sendActualRpmUdp();
+ }
+ 
+ // =====================================================
+@@ -440,12 +456,32 @@
+ 
+     unsigned long canId = CAN.getCanId();
+ 
+-    if (
+-      canId == MCU_ID &&
+-      len >= 1 &&
+-      buf[0] == 0x55
+-    ) {
++    // 핸드셰이크는 0x55 8개 모두 일치할 때만 인정
++    // (RPM 피드백의 첫 바이트가 우연히 0x55인 경우 구분)
++    bool isHandshakeFrame = (canId == MCU_ID && len == 8);
++    if (isHandshakeFrame) {
++      for (uint8_t i = 0; i < 8; ++i) {
++        if (buf[i] != 0x55) {
++          isHandshakeFrame = false;
++          break;
++        }
++      }
++    }
++
++    if (isHandshakeFrame) {
+       sendHandshakeResponse();
++    }
++    // Golden Motor Protocol 2: MCU -> VCU 피드백 Part I
++    // CAN ID: 0x1801D0EF, 8바이트
++    // Byte 6: Speed Raw Low / Byte 7: Speed Raw High
++    // 실제 RPM = (Byte7 << 8 | Byte6) - 32000
++    else if (canId == MCU_ID && len == 8 && handshake_ok) {
++      uint16_t speedRaw =
++        (uint16_t)buf[6] | ((uint16_t)buf[7] << 8);
++
++      actual_motor_rpm = (int32_t)speedRaw - 32000L;
++      actual_rpm_timestamp_ms = (uint32_t)millis();
++      hasNewActualRpm = true;
+     }
+   }
+ 
+@@ -782,3 +818,39 @@
+     false
+   );
+ }
++
++// =====================================================
++// 실제 모터 RPM PC로 UDP 전송 (최대 20Hz)
++// 패킷: int32_t RPM 4B + uint32_t timestamp_ms 4B
++// Little Endian, 합계 8바이트, valid 필드 없음
++// 새 CAN RPM 피드백이 들어온 경우에만 전송 (이전값 반복 송신 안 함)
++// =====================================================
++void sendActualRpmUdp() {
++  if (!hasNewActualRpm) {
++    return;
++  }
++
++  unsigned long now = millis();
++  if (now - lastRpmUdpSendTime < RPM_UDP_SEND_PERIOD_MS) {
++    return;
++  }
++  lastRpmUdpSendTime = now;
++
++  uint32_t rpmBits = (uint32_t)actual_motor_rpm;
++  uint32_t timeBits = actual_rpm_timestamp_ms;
++  uint8_t packet[8];
++
++  for (uint8_t i = 0; i < 4; ++i) {
++    packet[i] = (uint8_t)(rpmBits >> (i * 8));
++    packet[i + 4] = (uint8_t)(timeBits >> (i * 8));
++  }
++
++  spiSelectEthernet();
++  if (Udp.beginPacket(pcIP, RPM_UDP_DEST_PORT)) {
++    Udp.write(packet, sizeof(packet));
++    if (Udp.endPacket() == 1) {
++      hasNewActualRpm = false;
++    }
++  }
++  spiSelectNone();
++}
