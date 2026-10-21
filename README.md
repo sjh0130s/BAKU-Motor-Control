@@ -5,6 +5,7 @@
 | 코드 | 목적 | 자료 |
 | --- | --- | --- |
 | **3단 적층 테스트 (Arduino)** | Arduino 보드 + CAN BUS Shield + Ethernet Shield로 수행한 초기 시험용 코드 | [MotorController.ino](MotorController.ino) |
+| **Arduino 실측 RPM 피드백 (2026-10-21, 실차 미검증)** | 기존 Arduino 적층 모터 제어에 CAN 실측 RPM 수신 → PC UDP 8바이트(rpm + timestamp) 전송만 추가 | [코드 및 설명](BAKU_Arduino_MotorSpeedFeedback_20261021/README.md) |
 | **통합 PCB용 AVR C** | ATmega328P 기반 제작 PCB에서 최종 테스트를 위해 준비한 Arduino 비의존 펌웨어 | [PCB_AVR/avr](PCB_AVR/avr) |
 | **PCB AVR RPM 피드백 추가 (실물 미검증)** | 실측 모터 RPM의 PC UDP 전송 기능을 추가한 별도 소스코드 (새 HEX 미포함) | [엔코더값·속도값 PC 전송 추가](PCB_AVR_엔코더값_속도값_PC전송추가/README.md) |
 | **PCB AVR RPM 50Hz + timestamp (실물 미검증)** | 조향팀 요청 반영: UDP 20ms 목표, RPM+측정 시각 8바이트, valid 삭제 | [50Hz + timestamp 추가 버전](PCB_AVR_RPM_50Hz_timestamp_추가/README.md) |
