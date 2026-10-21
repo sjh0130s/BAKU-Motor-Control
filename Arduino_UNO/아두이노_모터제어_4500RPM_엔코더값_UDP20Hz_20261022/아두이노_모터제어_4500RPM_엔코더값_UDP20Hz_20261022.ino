@@ -5,6 +5,7 @@
 // Board: Arduino UNO + Ethernet Shield + MCP2515 CAN Shield
 // Status: Source only; Arduino build and vehicle test NOT verified
 // Change summary: Target RPM limit +/-4500; measured motor RPM UDP <=20Hz
+// PC AUTO packet: <ffB> (float32 steering, float32 speed -100..100, uint8 misc)
 // NOTE: 500 A current reference remains unchanged from previous code.
 // Safety: Verify physical speed/current limits and brakes before driving.
 // =====================================================
@@ -13,6 +14,8 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <mcp2515_can.h>
+#include <math.h>
+#include <string.h>
 
 
 
@@ -73,8 +76,8 @@ const bool JOY_FORWARD_IS_NEGATIVE = true;
 const int16_t SPEED_MAX_RPM = 4500;
 
 // AUTO speed 입력 범위
-const int32_t AUTO_SPEED_MIN = -100;
-const int32_t AUTO_SPEED_MAX = 100;
+const float AUTO_SPEED_MIN = -100.0f;
+const float AUTO_SPEED_MAX = 100.0f;
 
 // ===============================
 // 모터 전류 설정
@@ -155,7 +158,7 @@ void processUdpPacket();
 void enforceControlTimeout();
 
 void handleManualMode(int16_t joy_x, int16_t joy_y);
-void handleAutoMode(int32_t steer, int32_t speed, uint8_t misc);
+void handleAutoMode(float steer, float speed, uint8_t misc);
 void handleEstop();
 
 uint16_t enc_current(float current_A);
@@ -399,8 +402,8 @@ void processUdpPacket() {
   // ===============================
   // PC의 9바이트 AUTO 패킷 (ASMS가 자동 모드를 지정한 경우만 적용)
   //
-  // Byte 0~3 : steer Little Endian
-  // Byte 4~7 : speed Little Endian
+  // Byte 0~3 : steer float32 Little Endian
+  // Byte 4~7 : speed float32 Little Endian (-100..100)
   // Byte 8   : misc
   // ===============================
   if (senderIP == pcIP && packetSize == 9) {
@@ -423,24 +426,20 @@ void processUdpPacket() {
         now - lastAsmsReceiveTime > UDP_TIMEOUT_MS) {
       return;
     }
-    lastPcReceiveTime = now;
-    hasPcAutoPacket = true;
-
-    int32_t steer = (int32_t)(
-      ((uint32_t)autoBuffer[0]) |
-      ((uint32_t)autoBuffer[1] << 8) |
-      ((uint32_t)autoBuffer[2] << 16) |
-      ((uint32_t)autoBuffer[3] << 24)
-    );
-
-    int32_t speed = (int32_t)(
-      ((uint32_t)autoBuffer[4]) |
-      ((uint32_t)autoBuffer[5] << 8) |
-      ((uint32_t)autoBuffer[6] << 16) |
-      ((uint32_t)autoBuffer[7] << 24)
-    );
+    // Arduino UNO: 4-byte IEEE-754 float, Little Endian.
+    float steer;
+    float speed;
+    memcpy(&steer, autoBuffer, sizeof(steer));
+    memcpy(&speed, autoBuffer + 4, sizeof(speed));
 
     uint8_t misc = autoBuffer[8];
+
+    if (!isfinite(speed)) {
+      return;
+    }
+
+    lastPcReceiveTime = now;
+    hasPcAutoPacket = true;
 
     handleAutoMode(steer, speed, misc);
 
@@ -645,18 +644,18 @@ void handleManualMode(
 
 // =====================================================
 // AUTO 모드
-// 9바이트 speed를 -100~100으로 제한하고 실제 모터 RPM으로 변환
+// 9바이트 float32 speed를 -100~100으로 제한하고 최종 RPM만 반올림
 // =====================================================
 void handleAutoMode(
-  int32_t steer,
-  int32_t speed,
+  float steer,
+  float speed,
   uint8_t misc
 ) {
   // 조향과 misc는 모터 명령에 사용하지 않음
   (void)steer;
   (void)misc;
 
-  int32_t speedLimited = speed;
+  float speedLimited = speed;
   if (speedLimited > AUTO_SPEED_MAX) {
     speedLimited = AUTO_SPEED_MAX;
   }
@@ -665,16 +664,16 @@ void handleAutoMode(
   }
 
   // 양수 speed: 전진(음수 RPM), 음수 speed: 후진(양수 RPM)
-  target_speed_rpm = (int16_t)(
-    -(speedLimited * (int32_t)SPEED_MAX_RPM) / AUTO_SPEED_MAX
+  target_speed_rpm = (int16_t)lroundf(
+    -speedLimited * (float)SPEED_MAX_RPM / AUTO_SPEED_MAX
   );
   motor_enable_cmd = true;
 
   // AUTO 패킷 수신 시 원본 speed와 적용값을 10진수로 출력
   Serial.print(F("[AUTO] speedRaw="));
-  Serial.print((long)speed, DEC);
+  Serial.print(speed, 6);
   Serial.print(F(" speedLimited="));
-  Serial.print((long)speedLimited, DEC);
+  Serial.print(speedLimited, 6);
   Serial.print(F(" targetRPM="));
   Serial.println(target_speed_rpm, DEC);
 }
