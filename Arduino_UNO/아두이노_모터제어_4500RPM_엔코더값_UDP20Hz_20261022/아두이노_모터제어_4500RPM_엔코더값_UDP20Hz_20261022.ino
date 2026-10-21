@@ -41,7 +41,8 @@ IPAddress asmsIP(10, 177, 21, 5);
 
 const unsigned int localPort = 5000;
 
-EthernetUDP Udp;
+EthernetUDP Udp;     // 명령 수신: 5000
+EthernetUDP RpmUdp;  // RPM 송신: 5001
 
 // ===============================
 // CAN 설정
@@ -115,8 +116,8 @@ unsigned long lastMotorSendTime = 0;
 // ===============================
 // 실제 모터 RPM CAN 수신 -> PC UDP 송신 (20Hz)
 // ===============================
-// 목적지 PC IP는 위의 pcIP(10.177.21.1) 사용
-const unsigned int RPM_UDP_DEST_PORT = 5000;
+const unsigned int RPM_UDP_SOURCE_PORT = 5001;
+const unsigned int RPM_UDP_DEST_PORT = 5001;
 const unsigned long RPM_UDP_SEND_PERIOD_MS = 50;
 
 unsigned long lastRpmUdpSendTime = 0;
@@ -192,6 +193,7 @@ void setup() {
 
   Ethernet.begin(mac, localIp);
   Udp.begin(localPort);
+  RpmUdp.begin(RPM_UDP_SOURCE_PORT);
 
   spiSelectNone();
 
@@ -857,9 +859,9 @@ void sendActualRpmUdp() {
   }
 
   spiSelectEthernet();
-  if (Udp.beginPacket(pcIP, RPM_UDP_DEST_PORT)) {
-    Udp.write(packet, sizeof(packet));
-    if (Udp.endPacket() == 1) {
+  if (RpmUdp.beginPacket(pcIP, RPM_UDP_DEST_PORT)) {
+    RpmUdp.write(packet, sizeof(packet));
+    if (RpmUdp.endPacket() == 1) {
       hasNewActualRpm = false;
     }
   }
