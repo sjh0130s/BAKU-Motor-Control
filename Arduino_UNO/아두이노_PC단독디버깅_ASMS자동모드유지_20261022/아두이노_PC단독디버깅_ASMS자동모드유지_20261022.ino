@@ -1,7 +1,7 @@
 // =====================================================
 // BAKU Motor Control - Arduino UNO 3-Shield Test
-// Version: PC standalone debug 0/1 + ASMS AUTO latch
-// Date: 2026-10-22
+// Version: actual-RPM commands/feedback + PC standalone debug + ASMS AUTO latch
+// Date: 2026-10-23
 // Based on: e7112d3 (float32 PC AUTO + +/-4500 RPM + actual RPM UDP <=20Hz)
 // Board: Arduino UNO + Ethernet Shield + MCP2515 CAN Shield
 // Status: SOURCE ONLY; compile and actual vehicle tests NOT verified
@@ -27,18 +27,19 @@
 //
 // ================== [데이터 포맷] ====================
 // PC -> UNO UDP 10.177.21.2:5000 = 9 bytes (Little Endian)
-//   float32 steer [4B] + float32 speed(-100..100) [4B] + misc [1B]
-//   speed 양수 -> 차량 전진(목표 RPM 음수)
-//   speed 음수 -> 차량 후진(목표 RPM 양수)
+//   float32 steer [4B] + float32 speed(실제 RPM, +/-891.387) [4B] + misc [1B]
+//   speed 양수 -> 목표 RPM 음수, speed 음수 -> 목표 RPM 양수 (기존 부호 유지)
+//   PC 송신부도 실제 RPM 단위 계약으로 함께 전환해야 함.
 //   steer/misc는 모터 제어에 사용하지 않음.
 // UNO -> PC UDP 10.177.21.1:5001 = 8 bytes (<=20Hz)
-//   실제 CAN 모터 RPM int32 [4B] + millis() uint32 [4B]
+//   GNSS 기준 보정 RPM int32 [4B] + CAN 수신 millis() uint32 [4B]
 //   새로운 CAN 피드백을 받았을 때만 전송; 목표 RPM이 아님.
 //
 // ================== [안전/유지 항목] =================
 // 물리 E-STOP/브레이크/전류 및 속도 제한 별도 검증 필수.
-// 최대 목표 RPM +/-4500 및 Phase Current Reference 500A
-// 설정은 원본 그대로이며 안전성이 검증된 수치는 아님.
+// 실제 목표 RPM +/-891.387은 기존 CAN 명령 +/-4500에 대응.
+// 2026-10-23 합의: 실제 RPM = 컨트롤러 RPM * 0.198086.
+// 같은 비율을 명령/피드백에 적용. Phase Current Reference 500A는 기존 설정 유지.
 // CAN handshake가 성공해야 모터 CAN 제어 명령 전송.
 // 실제 차량 대신 바퀴를 지면에서 띄운 통제 환경에서 먼저 검증.
 // =====================================================
@@ -105,12 +106,12 @@ const bool JOY_FORWARD_IS_NEGATIVE = true;
 // 모터 속도 설정
 // ===============================
 
-// 조이스틱을 끝까지 밀었을 때 최대 RPM
-const int16_t SPEED_MAX_RPM = 4500;
+// 수동/AUTO 공통 최대 실제 RPM (GNSS 기준)
+const float SPEED_MAX_RPM = 891.387f;
 
-// AUTO speed 입력 범위
-const float AUTO_SPEED_MIN = -100.0f;
-const float AUTO_SPEED_MAX = 100.0f;
+// PC AUTO 입력은 백분율이 아닌 실제 목표 RPM
+const float AUTO_SPEED_MIN = -SPEED_MAX_RPM;
+const float AUTO_SPEED_MAX =  SPEED_MAX_RPM;
 
 // ===============================
 // 모터 전류 설정
@@ -155,14 +156,14 @@ const unsigned long MOTOR_SEND_PERIOD_MS = 50;
 unsigned long lastMotorSendTime = 0;
 
 // ===============================
-// 실제 모터 RPM CAN 수신 -> PC UDP 송신 (20Hz)
+// CAN RPM 수신 -> GNSS 기준 실제 RPM 보정 -> PC UDP 송신 (최대 20Hz)
 // ===============================
 const unsigned int RPM_UDP_SOURCE_PORT = 5001;
 const unsigned int RPM_UDP_DEST_PORT = 5001;
 const unsigned long RPM_UDP_SEND_PERIOD_MS = 50;
 
 unsigned long lastRpmUdpSendTime = 0;
-int32_t actual_motor_rpm = 0;          // CAN 피드백으로 측정된 실제 모터 RPM
+int32_t actual_motor_rpm = 0;          // GNSS 기준 보정 RPM, UDP 전송 직전용 정수
 uint32_t actual_rpm_timestamp_ms = 0; // 피드백을 수신하고 RPM을 계산한 millis()
 bool hasNewActualRpm = false;          // 새로운 실제 RPM 수신 여부
 
@@ -174,8 +175,8 @@ bool handshake_ok = false;
 uint8_t life = 0;
 uint8_t receivedMode = 0;
 
-// 조이스틱으로 계산된 목표 RPM
-int16_t target_speed_rpm = 0;
+// 수동/AUTO 공통 실제 목표 RPM. CAN 인코딩 직전까지 소수 유지.
+float target_speed_rpm = 0.0f;
 
 // true  : RUNNING
 // false : HALT
@@ -200,10 +201,10 @@ void handleAutoMode(float steer, float speed, uint8_t misc);
 void handleEstop();
 
 uint16_t enc_current(float current_A);
-uint16_t enc_speed(int16_t rpm);
+uint16_t enc_speed(float rpm);
 
 void sendMotorCommand_CAN(
-  int16_t speed_rpm,
+  float speed_rpm,
   float phase_current_A,
   bool enable_cmd
 );
@@ -472,7 +473,7 @@ void processUdpPacket() {
   //     ASMS MANUAL/ESTOP은 차단하며, ASMS AUTO keepalive 불필요.
   //
   // Byte 0~3 : steer float32 Little Endian
-  // Byte 4~7 : speed float32 Little Endian (-100..100)
+  // Byte 4~7 : speed float32 Little Endian (실제 목표 RPM)
   // Byte 8   : misc
   // ===============================
   if (senderIP == pcIP && packetSize == 9) {
@@ -560,12 +561,16 @@ void processCANHandshake() {
     // Golden Motor Protocol 2: MCU -> VCU 피드백 Part I
     // CAN ID: 0x1801D0EF, 8바이트
     // Byte 6: Speed Raw Low / Byte 7: Speed Raw High
-    // 실제 RPM = (Byte7 << 8 | Byte6) - 32000
+    // 컨트롤러 RPM = (Byte7 << 8 | Byte6) - 32000
+    // 실제 RPM = 컨트롤러 RPM * 0.198086 (GNSS 시험 기준)
     else if (canId == MCU_ID && len == 8 && handshake_ok) {
       uint16_t speedRaw =
         (uint16_t)buf[6] | ((uint16_t)buf[7] << 8);
 
-      actual_motor_rpm = (int32_t)speedRaw - 32000L;
+      const int32_t controller_rpm = (int32_t)speedRaw - 32000L;
+      actual_motor_rpm = (int32_t)lroundf(
+        (float)controller_rpm * 0.198086f
+      );
       actual_rpm_timestamp_ms = (uint32_t)millis();
       hasNewActualRpm = true;
     }
@@ -646,10 +651,8 @@ void handleManualMode(
     // 최소 RPM 강제 기능 없음
     //
     // 조이스틱을 조금 밀면 낮은 RPM
-    // 조이스틱을 끝까지 밀면 4500rpm
-    int16_t speed_rpm = (int16_t)(
-      ratio * (float)SPEED_MAX_RPM
-    );
+    // 조이스틱을 끝까지 밀면 실제 SPEED_MAX_RPM
+    float speed_rpm = ratio * SPEED_MAX_RPM;
 
     bool forward_cmd = false;
     bool reverse_cmd = false;
@@ -718,7 +721,7 @@ void handleManualMode(
 
 // =====================================================
 // AUTO 모드
-// 9바이트 float32 speed를 -100~100으로 제한하고 최종 RPM만 반올림
+// 9바이트 float32 speed는 실제 RPM. 범위를 제한하고 CAN 인코딩 때 반올림.
 // =====================================================
 void handleAutoMode(
   float steer,
@@ -737,10 +740,8 @@ void handleAutoMode(
     speedLimited = AUTO_SPEED_MIN;
   }
 
-  // 양수 speed: 전진(음수 RPM), 음수 speed: 후진(양수 RPM)
-  target_speed_rpm = (int16_t)lroundf(
-    -speedLimited * (float)SPEED_MAX_RPM / AUTO_SPEED_MAX
-  );
+  // PC가 보낸 실제 목표 RPM에 기존 부호 변환만 적용
+  target_speed_rpm = -speedLimited;
   motor_enable_cmd = true;
 
   // AUTO 패킷 수신 시 원본 speed와 적용값을 10진수로 출력
@@ -749,7 +750,7 @@ void handleAutoMode(
   Serial.print(F(" speedLimited="));
   Serial.print(speedLimited, 6);
   Serial.print(F(" targetRPM="));
-  Serial.println(target_speed_rpm, DEC);
+  Serial.println(target_speed_rpm, 3);
 }
 
 // =====================================================
@@ -783,10 +784,10 @@ uint16_t enc_current(float current_A) {
 // =====================================================
 // Protocol 2 Speed 인코딩
 //
-// raw = RPM + 32000
+// raw = round(실제 목표 RPM / 0.198086) + 32000
 // =====================================================
-uint16_t enc_speed(int16_t rpm) {
-  long raw = (long)rpm + 32000L;
+uint16_t enc_speed(float rpm) {
+  long raw = lroundf(rpm / 0.198086f) + 32000L;
 
   if (raw < 0) {
     raw = 0;
@@ -804,7 +805,7 @@ uint16_t enc_speed(int16_t rpm) {
 //
 // 실제 차량 방향:
 // - 음수 RPM, 음수 Current → 차량 전진
-// - 양수 RPM, 양수 Current → ㅁ 후진
+// - 양수 RPM, 양수 Current → 후진
 //
 // Byte 0~1: Signed Phase Current Reference
 // Byte 2~3: Target Rotor Speed
@@ -812,7 +813,7 @@ uint16_t enc_speed(int16_t rpm) {
 // Byte 7   : Life Signal
 // =====================================================
 void sendMotorCommand_CAN(
-  int16_t speed_rpm,
+  float speed_rpm,
   float phase_current_A,
   bool enable_cmd
 ) {
@@ -906,8 +907,8 @@ void sendMotorStop_CAN() {
 }
 
 // =====================================================
-// 실제 모터 RPM PC로 UDP 전송 (최대 20Hz)
-// 패킷: int32_t RPM 4B + uint32_t timestamp_ms 4B
+// GNSS 기준 보정 모터 RPM PC로 UDP 전송 (최대 20Hz)
+// 패킷: int32_t 보정 RPM 4B + uint32_t CAN 수신 timestamp_ms 4B
 // Little Endian, 합계 8바이트, valid 필드 없음
 // 새 CAN RPM 피드백이 들어온 경우에만 전송 (이전값 반복 송신 안 함)
 // =====================================================
