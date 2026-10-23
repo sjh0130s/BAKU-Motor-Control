@@ -32,8 +32,9 @@
 //   PC 송신부도 실제 RPM 단위 계약으로 함께 전환해야 함.
 //   steer/misc는 모터 제어에 사용하지 않음.
 // UNO -> PC UDP 10.177.21.1:5001 = 8 bytes (<=20Hz)
-//   GNSS 기준 보정 RPM int32 [4B] + CAN 수신 millis() uint32 [4B]
+//   GNSS 기준 보정 RPM float32 [4B] + CAN 수신 millis() uint32 [4B]
 //   새로운 CAN 피드백을 받았을 때만 전송; 목표 RPM이 아님.
+//   PC 수신부는 RPM을 int32가 아닌 float32 Little Endian으로 해석해야 함.
 //
 // ================== [안전/유지 항목] =================
 // 물리 E-STOP/브레이크/전류 및 속도 제한 별도 검증 필수.
@@ -163,7 +164,7 @@ const unsigned int RPM_UDP_DEST_PORT = 5001;
 const unsigned long RPM_UDP_SEND_PERIOD_MS = 50;
 
 unsigned long lastRpmUdpSendTime = 0;
-int32_t actual_motor_rpm = 0;          // GNSS 기준 보정 RPM, UDP 전송 직전용 정수
+float actual_motor_rpm = 0.0f;         // GNSS 기준 보정 RPM, 소수점 유지 (UDP float32)
 uint32_t actual_rpm_timestamp_ms = 0; // 피드백을 수신하고 RPM을 계산한 millis()
 bool hasNewActualRpm = false;          // 새로운 실제 RPM 수신 여부
 
@@ -568,9 +569,7 @@ void processCANHandshake() {
         (uint16_t)buf[6] | ((uint16_t)buf[7] << 8);
 
       const int32_t controller_rpm = (int32_t)speedRaw - 32000L;
-      actual_motor_rpm = (int32_t)lroundf(
-        (float)controller_rpm * 0.198086f
-      );
+      actual_motor_rpm = (float)controller_rpm * 0.198086f;
       actual_rpm_timestamp_ms = (uint32_t)millis();
       hasNewActualRpm = true;
     }
@@ -908,8 +907,9 @@ void sendMotorStop_CAN() {
 
 // =====================================================
 // GNSS 기준 보정 모터 RPM PC로 UDP 전송 (최대 20Hz)
-// 패킷: int32_t 보정 RPM 4B + uint32_t CAN 수신 timestamp_ms 4B
+// 패킷: float32 보정 RPM 4B + uint32_t CAN 수신 timestamp_ms 4B
 // Little Endian, 합계 8바이트, valid 필드 없음
+// PC 수신 예: Python struct.unpack('<fI', data)
 // 새 CAN RPM 피드백이 들어온 경우에만 전송 (이전값 반복 송신 안 함)
 // =====================================================
 void sendActualRpmUdp() {
@@ -923,14 +923,9 @@ void sendActualRpmUdp() {
   }
   lastRpmUdpSendTime = now;
 
-  uint32_t rpmBits = (uint32_t)actual_motor_rpm;
-  uint32_t timeBits = actual_rpm_timestamp_ms;
   uint8_t packet[8];
-
-  for (uint8_t i = 0; i < 4; ++i) {
-    packet[i] = (uint8_t)(rpmBits >> (i * 8));
-    packet[i + 4] = (uint8_t)(timeBits >> (i * 8));
-  }
+  memcpy(packet, &actual_motor_rpm, sizeof(actual_motor_rpm));
+  memcpy(packet + 4, &actual_rpm_timestamp_ms, sizeof(actual_rpm_timestamp_ms));
 
   spiSelectEthernet();
   if (RpmUdp.beginPacket(pcIP, RPM_UDP_DEST_PORT)) {
