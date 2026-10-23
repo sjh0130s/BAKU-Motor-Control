@@ -1,7 +1,7 @@
 // =====================================================
 // BAKU Motor Control - Arduino UNO 3-Shield Test
-// Version: actual-RPM commands/feedback + PC standalone debug + ASMS AUTO latch
-// Date: 2026-10-23
+// Version: 50Hz continuous RPM UDP + CAN RX independent of control mode
+// Date: 2026-10-24
 // Based on: e7112d3 (float32 PC AUTO + +/-4500 RPM + actual RPM UDP <=20Hz)
 // Board: Arduino UNO + Ethernet Shield + MCP2515 CAN Shield
 // Status: SOURCE ONLY; compile and actual vehicle tests NOT verified
@@ -31,9 +31,12 @@
 //   speed 양수 -> 목표 RPM 음수, speed 음수 -> 목표 RPM 양수 (기존 부호 유지)
 //   PC 송신부도 실제 RPM 단위 계약으로 함께 전환해야 함.
 //   steer/misc는 모터 제어에 사용하지 않음.
-// UNO -> PC UDP 10.177.21.1:5001 = 8 bytes (<=20Hz)
-//   GNSS 기준 보정 RPM int32 [4B] + CAN 수신 millis() uint32 [4B]
-//   새로운 CAN 피드백을 받았을 때만 전송; 목표 RPM이 아님.
+// UNO -> PC UDP 10.177.21.1:5001 = 8 bytes (50Hz 목표, 20ms 간격)
+//   GNSS 기준 보정 RPM int32 [4B] + 마지막 CAN 수신 millis() uint32 [4B]
+//   모드/E-STOP/핸드셰이크와 무관하게 송신; 동일한 RPM 반복 가능.
+//   CAN RPM 미수신 또는 마지막 수신 후 200ms 초과 시 RPM=INT32_MIN
+//   (-2147483648)을 전송. timestamp는 마지막 실제 CAN RPM 수신 시각,
+//   수신 이력이 없으면 0. PC에서 INT32_MIN을 반드시 무효로 처리할 것.
 //
 // ================== [안전/유지 항목] =================
 // 물리 E-STOP/브레이크/전류 및 속도 제한 별도 검증 필수.
@@ -156,21 +159,28 @@ const unsigned long MOTOR_SEND_PERIOD_MS = 50;
 unsigned long lastMotorSendTime = 0;
 
 // ===============================
-// CAN RPM 수신 -> GNSS 기준 실제 RPM 보정 -> PC UDP 송신 (최대 20Hz)
+// CAN 실제 RPM 피드백 -> GNSS 기준 보정 -> PC UDP 50Hz
+// 제조사 프로토콜상 실제 CAN 피드백 주기는 기본 50ms (20Hz).
 // ===============================
 const unsigned int RPM_UDP_SOURCE_PORT = 5001;
 const unsigned int RPM_UDP_DEST_PORT = 5001;
-const unsigned long RPM_UDP_SEND_PERIOD_MS = 50;
+const unsigned long RPM_UDP_SEND_PERIOD_MS = 20;  // 목표 50Hz
+const unsigned long RPM_CAN_STALE_TIMEOUT_MS = 200;
+const int32_t RPM_UNAVAILABLE_SENTINEL = (-2147483647L - 1L);
 
 unsigned long lastRpmUdpSendTime = 0;
-int32_t actual_motor_rpm = 0;          // GNSS 기준 보정 RPM, UDP 전송 직전용 정수
-uint32_t actual_rpm_timestamp_ms = 0; // 피드백을 수신하고 RPM을 계산한 millis()
-bool hasNewActualRpm = false;          // 새로운 실제 RPM 수신 여부
+int32_t actual_motor_rpm = 0;          // 최근 CAN에서 측정한 보정 RPM
+uint32_t actual_rpm_timestamp_ms = 0;  // 마지막 RPM 피드백 CAN 수신시각
+bool hasActualRpm = false;            // 실제 피드백을 받은 적 있는지
 
 // ===============================
 // 상태 변수
 // ===============================
 bool handshake_ok = false;
+bool canInitialized = false;
+const unsigned long CAN_INIT_RETRY_PERIOD_MS = 1000;
+unsigned long lastCanInitAttemptTime = 0;
+const uint8_t CAN_MAX_RX_FRAMES_PER_LOOP = 8;
 
 uint8_t life = 0;
 uint8_t receivedMode = 0;
@@ -190,6 +200,7 @@ void spiSelectEthernet();
 void spiSelectCAN();
 
 void processCANHandshake();
+void retryCANInitialization();
 void sendHandshakeResponse();
 void sendActualRpmUdp();
 
@@ -247,16 +258,13 @@ void setup() {
   // ===============================
   spiSelectCAN();
 
-  if (CAN.begin(CAN_250KBPS, MCP_16MHz) == CAN_OK) {
+  canInitialized = (CAN.begin(CAN_250KBPS, MCP_16MHz) == CAN_OK);
+  lastCanInitAttemptTime = millis();
+  if (canInitialized) {
     Serial.println("CAN Init OK");
   } else {
-    Serial.println("CAN Init Fail");
-
-    spiSelectNone();
-
-    while (1) {
-      delay(1000);
-    }
+    // CAN 실패 시에도 50Hz UDP 송신 루프는 계속 진행.
+    Serial.println("CAN Init Fail: UDP active, CAN retry enabled");
   }
 
   spiSelectNone();
@@ -270,17 +278,20 @@ void setup() {
 // LOOP
 // =====================================================
 void loop() {
-  // 1. CAN 핸드셰이크 확인
+  // 1. AUTO/MANUAL/ESTOP과 상관없이 CAN 수신 처리
   processCANHandshake();
 
-  // 2. 만료된 모드를 먼저 해제한 뒤 UDP 패킷 처리
+  // 2. 실제 CAN 신호 유무와 무관하게 20ms 주기의 UDP 전송
+  sendActualRpmUdp();
+
+  // 3. 만료된 모드를 먼저 해제한 뒤 UDP 패킷 처리
   enforceControlTimeout();
   processUdpPacket();
 
-  // 3. 수신 처리 중 경과한 시간까지 반영
+  // 4. 수신 처리 중 경과한 시간까지 반영
   enforceControlTimeout();
 
-  // 4. 모터 명령을 50ms마다 반복 전송
+  // 5. 모터 명령을 50ms마다 반복 전송
   if (
     millis() - lastMotorSendTime >=
     MOTOR_SEND_PERIOD_MS
@@ -296,7 +307,10 @@ void loop() {
     }
   }
 
-  // 5. 새로 수신한 실제 RPM만 PC로 최대 20Hz UDP 전송
+  // 6. 초기 CAN 연결 실패 시, 정상 운용을 막지 않고 재초기화
+  retryCANInitialization();
+
+  // 7. CAN/제어 처리 사이에 20ms가 경과했으면 UDP 전송
   sendActualRpmUdp();
 }
 
@@ -530,21 +544,28 @@ void processUdpPacket() {
 }
 
 // =====================================================
-// CAN 핸드셰이크 처리
+// CAN 수신: 모드, E-STOP, handshake 상태와 상관없이 읽기.
+// MCP2515 수신 버퍼 오버런 완화를 위해 최대 8프레임 처리.
 // =====================================================
 void processCANHandshake() {
-  spiSelectCAN();
+  if (!canInitialized) {
+    return;
+  }
 
-  unsigned char len = 0;
-  unsigned char buf[8] = {0};
+  for (uint8_t frame = 0; frame < CAN_MAX_RX_FRAMES_PER_LOOP; ++frame) {
+    spiSelectCAN();
 
-  if (CAN_MSGAVAIL == CAN.checkReceive()) {
+    if (CAN_MSGAVAIL != CAN.checkReceive()) {
+      spiSelectNone();
+      break;
+    }
+
+    unsigned char len = 0;
+    unsigned char buf[8] = {0};
     CAN.readMsgBuf(&len, buf);
-
     unsigned long canId = CAN.getCanId();
+    spiSelectNone();
 
-    // 핸드셰이크는 0x55 8개 모두 일치할 때만 인정
-    // (RPM 피드백의 첫 바이트가 우연히 0x55인 경우 구분)
     bool isHandshakeFrame = (canId == MCU_ID && len == 8);
     if (isHandshakeFrame) {
       for (uint8_t i = 0; i < 8; ++i) {
@@ -558,12 +579,10 @@ void processCANHandshake() {
     if (isHandshakeFrame) {
       sendHandshakeResponse();
     }
-    // Golden Motor Protocol 2: MCU -> VCU 피드백 Part I
-    // CAN ID: 0x1801D0EF, 8바이트
-    // Byte 6: Speed Raw Low / Byte 7: Speed Raw High
-    // 컨트롤러 RPM = (Byte7 << 8 | Byte6) - 32000
-    // 실제 RPM = 컨트롤러 RPM * 0.198086 (GNSS 시험 기준)
-    else if (canId == MCU_ID && len == 8 && handshake_ok) {
+    // Golden Motor Protocol 2 피드백 Part I, ID 0x1801D0EF:
+    // Byte 6~7 LE = controller_rpm + 32000
+    // handshake_ok와 관계없이 수신 가능한 피드백을 저장한다.
+    else if (canId == MCU_ID && len == 8) {
       uint16_t speedRaw =
         (uint16_t)buf[6] | ((uint16_t)buf[7] << 8);
 
@@ -572,10 +591,32 @@ void processCANHandshake() {
         (float)controller_rpm * 0.198086f
       );
       actual_rpm_timestamp_ms = (uint32_t)millis();
-      hasNewActualRpm = true;
+      hasActualRpm = true;
     }
   }
+}
 
+// =====================================================
+// CAN 초기화에 실패했더라도 UDP 서비스를 중지하지 않고 재시도.
+// CAN 버스 장애로 인한 수신 중단 자체는 하드웨어 점검 필요.
+// =====================================================
+void retryCANInitialization() {
+  if (canInitialized) {
+    return;
+  }
+
+  unsigned long now = millis();
+  if (now - lastCanInitAttemptTime < CAN_INIT_RETRY_PERIOD_MS) {
+    return;
+  }
+  lastCanInitAttemptTime = now;
+
+  spiSelectCAN();
+  if (CAN.begin(CAN_250KBPS, MCP_16MHz) == CAN_OK) {
+    canInitialized = true;
+    handshake_ok = false;
+    Serial.println(F("CAN Init Recovered; waiting handshake"));
+  }
   spiSelectNone();
 }
 
@@ -817,6 +858,11 @@ void sendMotorCommand_CAN(
   float phase_current_A,
   bool enable_cmd
 ) {
+  // CAN 장치 초기화가 안 된 상태에선 CAN 송신을 시도하지 않음.
+  if (!canInitialized) {
+    return;
+  }
+
   float signed_current_A = 0.0f;
 
   if (enable_cmd) {
@@ -907,24 +953,25 @@ void sendMotorStop_CAN() {
 }
 
 // =====================================================
-// GNSS 기준 보정 모터 RPM PC로 UDP 전송 (최대 20Hz)
-// 패킷: int32_t 보정 RPM 4B + uint32_t CAN 수신 timestamp_ms 4B
-// Little Endian, 합계 8바이트, valid 필드 없음
-// 새 CAN RPM 피드백이 들어온 경우에만 전송 (이전값 반복 송신 안 함)
+// GNSS 기준 보정 모터 RPM UDP: 20ms 마다 목표 50Hz 전송
+// 패킷 유지: int32_t rpm + uint32_t CAN sample timestamp (8B LE)
+// CAN 200ms 초과 미수신 시 RPM=INT32_MIN, timestamp는 마지막 sample.
+// 이전 유효 RPM을 새 측정값처럼 출력하지 않음.
 // =====================================================
 void sendActualRpmUdp() {
-  if (!hasNewActualRpm) {
-    return;
-  }
-
-  unsigned long now = millis();
+  const unsigned long now = millis();
   if (now - lastRpmUdpSendTime < RPM_UDP_SEND_PERIOD_MS) {
     return;
   }
   lastRpmUdpSendTime = now;
 
-  uint32_t rpmBits = (uint32_t)actual_motor_rpm;
-  uint32_t timeBits = actual_rpm_timestamp_ms;
+  const bool rpmFresh =
+    hasActualRpm &&
+    (now - actual_rpm_timestamp_ms <= RPM_CAN_STALE_TIMEOUT_MS);
+  const int32_t rpmToSend =
+    rpmFresh ? actual_motor_rpm : RPM_UNAVAILABLE_SENTINEL;
+  const uint32_t timeBits = hasActualRpm ? actual_rpm_timestamp_ms : 0;
+  const uint32_t rpmBits = (uint32_t)rpmToSend;
   uint8_t packet[8];
 
   for (uint8_t i = 0; i < 4; ++i) {
@@ -935,9 +982,7 @@ void sendActualRpmUdp() {
   spiSelectEthernet();
   if (RpmUdp.beginPacket(pcIP, RPM_UDP_DEST_PORT)) {
     RpmUdp.write(packet, sizeof(packet));
-    if (RpmUdp.endPacket() == 1) {
-      hasNewActualRpm = false;
-    }
+    RpmUdp.endPacket();
   }
   spiSelectNone();
 }
