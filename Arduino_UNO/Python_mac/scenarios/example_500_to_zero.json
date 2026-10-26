@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "rpm_convention": "pc_speed_field",
+  "initial_zero_s": 1,
+  "final_behavior": "hold_until_stop",
+  "stages": [
+    {"rpm": 500.0, "at": 2.0, "hold": 2.0},
+    {"rpm": 0.0, "at": 6.0, "hold": 0.0}
+  ]
+}
