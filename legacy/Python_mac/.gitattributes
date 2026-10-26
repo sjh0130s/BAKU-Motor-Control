@@ -1,0 +1,5 @@
+*.command text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+requirements.txt text eol=lf
+README.md text eol=lf

@@ -1,0 +1,2 @@
+﻿elapsed_s,pc_epoch_s,event,detail
+0.22048191726207733,1793027673.731116,feedback_health,"{""health"": ""WAIT_UDP"", ""udp_age_s"": null, ""can_age_s"": null, ""actual_raw"": null, ""actual_rpm"": null, ""udp_hz"": 0, ""can_hz"": 0, ""bad_packets"": 0, ""clock_resets"": 0, ""mode"": ""idle"", ""phase"": ""idle"", ""reference_rpm"": 0, ""elapsed_s"": 0, ""sent"": 0, ""tx_errors"": 0, ""tx_age_s"": null, ""max_gap_s"": 0.0, ""missed_deadlines"": 0, ""requested_asms"": null, ""error"": """"}"

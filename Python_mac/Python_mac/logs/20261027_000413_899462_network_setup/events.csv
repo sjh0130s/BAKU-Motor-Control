@@ -1,0 +1,6 @@
+﻿elapsed_s,pc_epoch_s,event,detail
+2.491773790679872,1793027056.391318,sudo_cached_check,"{""command"": [""/usr/bin/sudo"", ""-n"", ""true""], ""code"": 1, ""stdout"": """", ""stderr"": ""sudo: a password is required\n""}"
+124.99200550001115,1793027204.8893068,sudo_authorize,exit=0
+125.02218395797536,1793027204.9195678,network_add,"{""command"": [""/usr/bin/sudo"", ""-n"", ""/sbin/ifconfig"", ""en6"", ""inet"", ""10.177.21.1"", ""netmask"", ""255.255.255.0"", ""alias""], ""code"": 0, ""stdout"": """", ""stderr"": """"}"
+125.03736829105765,1793027204.934685,network_add,"{""command"": [""/usr/bin/sudo"", ""-n"", ""/sbin/ifconfig"", ""en6"", ""inet"", ""10.177.21.5"", ""netmask"", ""255.255.255.0"", ""alias""], ""code"": 0, ""stdout"": """", ""stderr"": """"}"
+125.04266079096124,1793027204.939967,network_route_check,"{""command"": [""/sbin/route"", ""-n"", ""get"", ""10.177.21.2""], ""code"": 0, ""stdout"": ""   route to: 10.177.21.2\ndestination: 10.177.21.0\n       mask: 255.255.255.0\n  interface: en6\n      flags: <UP,DONE,CLONING>\n recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire\n       0         0         0         0         0         0      1500         0 \n"", ""stderr"": """"}"

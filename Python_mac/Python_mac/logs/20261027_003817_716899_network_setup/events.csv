@@ -1,0 +1,2 @@
+﻿elapsed_s,pc_epoch_s,event,detail
+1.3046340830624104,1793029099.0216682,network_route_check,"{""command"": [""/sbin/route"", ""-n"", ""get"", ""10.177.21.2""], ""code"": 0, ""stdout"": ""   route to: 10.177.21.2\ndestination: 10.177.21.2\n  interface: en6\n      flags: <UP,HOST,DONE,LLINFO,WASCLONED,IFSCOPE,IFREF>\n recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire\n       0         0         0         0         0         0      1500      1095 \n"", ""stderr"": """"}"

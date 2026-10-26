@@ -1,0 +1,5 @@
+﻿elapsed_s,pc_epoch_s,event,detail
+0.0012292079627513885,1793032020.841462,run_start,initial 1s zero; final target held until explicit stop
+0.0012760828249156475,1793032020.841503,feedback_health,"{""health"": ""OK"", ""udp_age_s"": 0.0010599996894598007, ""can_age_s"": 0.0010599996894598007, ""actual_raw"": 0, ""actual_rpm"": 0, ""udp_hz"": 50, ""can_hz"": 20, ""bad_packets"": 0, ""clock_resets"": 0, ""mode"": ""pc"", ""phase"": ""running"", ""reference_rpm"": 0.0, ""elapsed_s"": 1.5124678611755371e-05, ""sent"": 0, ""tx_errors"": 0, ""tx_age_s"": null, ""max_gap_s"": 0.0, ""missed_deadlines"": 2, ""requested_asms"": null, ""error"": """"}"
+15.258594457991421,1793032036.09902,stop_zero_begin,"zero for 2s, then TX idle; no ESTOP"
+17.263715707696974,1793032038.1041632,run_end,TX stopped; firmware timeout HALT expected after >1s

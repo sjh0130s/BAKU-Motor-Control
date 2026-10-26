@@ -1,0 +1,6 @@
+﻿elapsed_s,pc_epoch_s,event,detail
+0.0015451670624315739,1793031626.834374,run_start,initial 1s zero; final target held until explicit stop
+0.0016335421241819859,1793031626.8344488,feedback_health,"{""health"": ""OK"", ""udp_age_s"": 0.02007687510922551, ""can_age_s"": 0.02007687510922551, ""actual_raw"": 0, ""actual_rpm"": 0, ""udp_hz"": 49, ""can_hz"": 20, ""bad_packets"": 0, ""clock_resets"": 0, ""mode"": ""pc"", ""phase"": ""running"", ""reference_rpm"": 0.0, ""elapsed_s"": 3.1542032957077026e-05, ""sent"": 0, ""tx_errors"": 0, ""tx_age_s"": null, ""max_gap_s"": 0.0, ""missed_deadlines"": 1, ""requested_asms"": null, ""error"": """"}"
+19.292669625021517,1793031646.125725,feedback_health,"{""health"": ""STALE_CAN"", ""udp_age_s"": 0.001589084044098854, ""can_age_s"": 0.6617157920263708, ""actual_raw"": 0, ""actual_rpm"": 0, ""udp_hz"": 50, ""can_hz"": 7, ""bad_packets"": 0, ""clock_resets"": 0, ""mode"": ""pc"", ""phase"": ""running"", ""reference_rpm"": 0.0, ""elapsed_s"": 19.291003583930433, ""sent"": 964, ""tx_errors"": 0, ""tx_age_s"": 0.016944208648055792, ""max_gap_s"": 0.02951875003054738, ""missed_deadlines"": 1, ""requested_asms"": null, ""error"": """"}"
+21.44497908325866,1793031648.2780612,stop_zero_begin,"zero for 2s, then TX idle; no ESTOP"
+23.445184625219554,1793031650.278286,run_end,TX stopped; firmware timeout HALT expected after >1s

@@ -1,0 +1,47 @@
+{
+  "started_local": "2026-10-27T01:52:56.790991+09:00",
+  "python": "3.12.8 (v3.12.8:2dc476bcb91, Dec  3 2024, 14:43:19) [Clang 13.0.0 (clang-1300.0.29.30)]",
+  "executable": "/Users/lep/Desktop/Python_mac/.venv/bin/python",
+  "argv": [
+    "/Users/lep/Desktop/Python_mac/motor_test.py",
+    "--setup-network"
+  ],
+  "packages": {
+    "matplotlib": "3.10.7",
+    "numpy": "2.5.4",
+    "prompt_toolkit": "3.0.52",
+    "wcwidth": "0.9.4"
+  },
+  "runtime_platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "macos": "26.5.2"
+  },
+  "git_commit": "unavailable",
+  "git_status": "unavailable",
+  "program_sha256": "8a1a468f79889e0b1888a1d1841cc209a6acaf1df3925d8516193e1280cdcfe6",
+  "firmware_source": "/Users/lep/Desktop/1025_0100_변경코드_PC에_모터값_계속_보내/1025_0100_변경코드_PC에_모터값_계속_보내.ino",
+  "firmware_source_sha256": null,
+  "firmware_upload_verified": false,
+  "options": {
+    "dry_run": false,
+    "setup_network": true,
+    "adapter": null,
+    "list_adapters": false,
+    "warning_age": 0.5,
+    "logs": "/Users/lep/Desktop/Python_mac/logs"
+  },
+  "rpm_convention": "reference=operator direction; UDP speed=-reference; displayed actual=raw feedback; positive=forward on tested hardware",
+  "network": {
+    "pc": "10.177.21.1",
+    "asms": "10.177.21.5",
+    "board": "10.177.21.2",
+    "command_port": 5000,
+    "feedback_port": 5001
+  },
+  "tx_period_s": 0.02,
+  "initial_zero_s": 1,
+  "stop_zero_s": 2.0,
+  "docker_image": "not used (native application)",
+  "kind": "network_setup"
+}

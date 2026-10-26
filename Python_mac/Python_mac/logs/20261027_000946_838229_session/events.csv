@@ -1,0 +1,14 @@
+﻿elapsed_s,pc_epoch_s,event,detail
+0.23054370796307921,1793027387.068758,feedback_health,"{""health"": ""WAIT_UDP"", ""udp_age_s"": null, ""can_age_s"": null, ""actual_raw"": null, ""actual_rpm"": null, ""udp_hz"": 0, ""can_hz"": 0, ""bad_packets"": 0, ""clock_resets"": 0, ""mode"": ""idle"", ""phase"": ""idle"", ""reference_rpm"": 0, ""elapsed_s"": 0, ""sent"": 0, ""tx_errors"": 0, ""tx_age_s"": null, ""max_gap_s"": 0.0, ""missed_deadlines"": 0, ""requested_asms"": null, ""error"": """"}"
+13.635985457804054,1793027400.47437,run_start,initial 1s zero; final target held until explicit stop
+13.636073166038841,1793027400.474454,feedback_health,"{""health"": ""WAIT_UDP"", ""udp_age_s"": null, ""can_age_s"": null, ""actual_raw"": null, ""actual_rpm"": null, ""udp_hz"": 0, ""can_hz"": 0, ""bad_packets"": 0, ""clock_resets"": 0, ""mode"": ""pc"", ""phase"": ""running"", ""reference_rpm"": 0.0, ""elapsed_s"": 4.374980926513672e-05, ""sent"": 0, ""tx_errors"": 0, ""tx_age_s"": null, ""max_gap_s"": 0.0, ""missed_deadlines"": 0, ""requested_asms"": null, ""error"": """"}"
+15.42166508268565,1793027402.2600708,target_input,100
+18.7628859160468,1793027405.601336,target_input,200
+22.380913832690567,1793027409.219411,target_input,300
+27.336030040867627,1793027414.174592,target_input,400
+38.31367770768702,1793027425.152383,stop_zero_begin,"zero for 2s, then TX idle; no ESTOP"
+40.318773415870965,1793027427.1575081,run_end,TX stopped; firmware timeout HALT expected after >1s
+107.14887329097837,1793027493.9884858,run_start,initial 1s zero; final target held until explicit stop
+107.14895862480626,1793027493.988567,feedback_health,"{""health"": ""WAIT_UDP"", ""udp_age_s"": null, ""can_age_s"": null, ""actual_raw"": null, ""actual_rpm"": null, ""udp_hz"": 0, ""can_hz"": 0, ""bad_packets"": 0, ""clock_resets"": 0, ""mode"": ""pc"", ""phase"": ""running"", ""reference_rpm"": 0.0, ""elapsed_s"": 5.4333824664354324e-05, ""sent"": 1334, ""tx_errors"": 0, ""tx_age_s"": null, ""max_gap_s"": 0.02878774981945753, ""missed_deadlines"": 0, ""requested_asms"": null, ""error"": """"}"
+169.64166683284566,1793027556.4821,stop_zero_begin,"zero for 2s, then TX idle; no ESTOP"
+171.64583983272314,1793027558.4863071,run_end,TX stopped; firmware timeout HALT expected after >1s
