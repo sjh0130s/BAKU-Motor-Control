@@ -1,6 +1,6 @@
 """macOS motor-only UDP tuner for the 1025_0100 UNO firmware.
 
-Run bash run.command, or python3.13 motor_test.py --dry-run for a socket-free simulation.
+Run bash run.command, or python3 motor_test.py --dry-run for a socket-free simulation.
 All control code lives in this file. GUI/dependencies are imported on demand.
 """
 from __future__ import annotations
@@ -1302,7 +1302,7 @@ def main(argv=None):
         import matplotlib
         import prompt_toolkit
     except ImportError as exc:
-        print(f"설치가 필요합니다: {exc}\nbash install.command 또는 python3.13 -m pip install -r requirements.txt")
+        print(f"설치가 필요합니다: {exc}\nbash install.command 또는 python3 -m pip install -r requirements.txt")
         return 1
     if sys.platform == "darwin":
         matplotlib.rcParams["font.family"] = ["AppleGothic", "DejaVu Sans"]

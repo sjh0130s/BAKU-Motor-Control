@@ -8,19 +8,19 @@
 
 ## 1. Python과 최초 설치
 
-[Python 공식 macOS 다운로드](https://www.python.org/downloads/macos/)에서 **일반 Python 3.13 계열 macOS 64-bit universal2 installer(.pkg)**를 설치합니다. 기본 설치에 포함된 Tcl/Tk를 사용합니다. 실험적인 free-threaded 빌드와 Rosetta로 실행하는 Intel Python은 사용하지 않습니다. universal2 설치본은 Apple Silicon에서 네이티브로 실행할 수 있습니다. [Python의 macOS 설치 안내](https://docs.python.org/3.13/using/mac.html)
+[Python 공식 macOS 다운로드](https://www.python.org/downloads/macos/)의 **일반 Python 3.12 또는 3.13 계열 macOS 64-bit universal2 installer(.pkg)**를 사용합니다. **기존 Python 3.12.8도 사용할 수 있으며, 3.13을 추가로 설치할 필요는 없습니다.** Tcl/Tk가 포함되고 `arm64`로 실행되어야 합니다. 실험적인 free-threaded 빌드와 Rosetta로 실행하는 Intel Python은 사용하지 않습니다. universal2 설치본은 Apple Silicon에서 네이티브로 실행할 수 있습니다. [Python의 macOS 설치 안내](https://docs.python.org/3.13/using/mac.html)
 
-설치 후 `/Applications/Python 3.13/Install Certificates.command`를 실행해 인증서 설치도 완료합니다. pip에서 인증서 오류가 발생하면 이 단계와 네트워크 연결을 확인하세요.
+python.org 설치본이면 자신의 버전에 맞는 `/Applications/Python 3.12/Install Certificates.command` 또는 `/Applications/Python 3.13/Install Certificates.command`를 실행해 인증서 설치도 완료합니다. pip에서 인증서 오류가 발생하면 이 단계와 네트워크 연결을 확인하세요.
 
 Terminal을 열고 다음을 확인합니다.
 
 ```bash
-python3.13 --version
-python3.13 -c 'import platform; print(platform.machine())'
-python3.13 -m tkinter
+python3 --version
+python3 -c 'import platform; print(platform.machine())'
+python3 -m tkinter
 ```
 
-각각 `Python 3.13.x`, `arm64`, Tk 테스트 창이 나와야 합니다. `x86_64`면 Terminal의 Rosetta 실행 여부와 Python 설치본을 확인하세요. macOS 시스템 Python이나 Homebrew Python을 사용할 필요는 없습니다.
+각각 `Python 3.12.x` 또는 `3.13.x`, `arm64`, Tk 테스트 창이 나와야 합니다. 원하는 버전이 `python3.12` 등의 명령으로 설치되어 있으면 위 명령의 `python3`도 해당 명령으로 바꾸세요. `x86_64`면 Terminal의 Rosetta 실행 여부와 Python 설치본을 확인하세요. macOS 시스템 Python이나 Homebrew Python을 사용할 필요는 없습니다.
 
 팀 모터 저장소를 clone/pull한 뒤 `Arduino_UNO/Python_mac` 폴더로 이동합니다. **저장소 경로와 폴더 이름은 자유**이며 한글·공백 경로도 허용합니다. 아래 `/Users/사용자/...`는 예시일 뿐입니다.
 
@@ -38,13 +38,13 @@ CMD 대신 `.command` 스크립트를 사용합니다. 스크립트 위치를 �
 chmod +x install.command run.command
 ```
 
-다른 위치의 Python 3.13을 지정하려면:
+설치기는 기존 `.venv`가 있으면 재사용하고, 없으면 지원하는 `python3`/`python3.12`/`python3.13`과 python.org 설치 경로를 검색합니다. Python 3.12.8을 명시적으로 선택하려면:
 
 ```bash
-MOTOR_PYTHON="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13" bash install.command
+MOTOR_PYTHON=python3.12 bash install.command
 ```
 
-업데이트 후에는 `git pull`하고 `bash run.command`로 실행합니다. `.venv`가 없거나 requirements 내용이 바뀌면 설치를 수행하므로 그때는 인터넷이 필요합니다. Python 자체를 자동 설치하지는 않습니다. 가상환경 활성화는 필요 없습니다. 가상환경을 만든 뒤 폴더를 옮겼거나 Python 버전/아키텍처를 바꿨으면 **이 폴더의 `.venv`만** 지우고 `bash install.command`로 다시 만드세요. [venv 안내](https://docs.python.org/3.13/library/venv.html)
+`MOTOR_PYTHON`에는 실행 파일의 절대 경로도 지정할 수 있습니다. 업데이트 후에는 `git pull`하고 `bash run.command`로 실행합니다. `.venv`가 없거나 requirements 내용이 바뀌면 설치를 수행하므로 그때는 인터넷이 필요합니다. Python 자체를 자동 설치하지는 않습니다. 가상환경 활성화는 필요 없습니다. 기존 `.venv`가 3.13이면 계속 3.13으로 실행됩니다. 가상환경을 만든 뒤 폴더를 옮겼거나 3.12로 전환하는 등 Python 버전/아키텍처를 바꿨으면 **이 폴더의 `.venv`만** 지우고 원하는 `MOTOR_PYTHON`으로 다시 설치하세요. [venv 안내](https://docs.python.org/3.13/library/venv.html)
 
 ## 2. 장비 없이 모의 실행
 
@@ -239,5 +239,7 @@ CSV는 UTF-8 BOM이고 PC 상대 시각/epoch를 함께 남깁니다. 기록 시
 ## 10. 검증 범위
 
 제어/기록/GUI 로직이 기존 Windows 코드와 동일한지 비교하고 격리 Linux 임시 컨테이너에서 시나리오·피드백·로컬 UDP·모의 실행·한글/공백 경로·그래프 편집을 검증합니다. macOS 네트워크 명령은 모의 응답으로 선택/alias 추가·정리/실패 복구를 확인합니다. macOS arm64/Python 3.13용 의존성 wheel 다운로드 가능 여부도 별도로 확인합니다.
+
+설치 스크립트의 Python 3.12.8/3.13 선택, 기존 3.12 가상환경 재사용, 의존성 변경 후 재설치, 지원하지 않는 버전/아키텍처 거부는 모의 Python 응답을 사용하는 설치 흐름 검증 8개로 확인했습니다. 실제 macOS Python 3.12.8에서 전체 GUI를 실행한 검증은 아닙니다.
 
 위 검증은 **실제 macOS 26.5.2의 GUI/권한/CM639 인식/IP 경로/모터 동작 확인을 대신하지 않습니다.** 처음에는 `--dry-run`, 다음에는 장비 연결 후 낮은 RPM으로 단위·방향·모드 전환·종료 반응을 확인하세요.
