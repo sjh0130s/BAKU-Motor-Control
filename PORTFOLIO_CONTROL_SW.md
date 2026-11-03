@@ -1,8 +1,8 @@
-# BAKU 자율주행 차량 | 모터 제어 SW 개발 포트폴리오
+# BAKU4 자율주행 차량 | 모터 제어 SW  포트폴리오
 
 > **Robotics / Embedded Control Software · Arduino C/C++ · UDP · CAN · BLDC Motor**  
 > 담당: **모터 제어 SW 및 인지·판단 PC팀 통신 인터페이스 연동**  
-> 프로젝트: 한양대학교 ERICA 자작자동차 학회 **baqu4**, 자작자율주행 차량 개발
+> 프로젝트: 한양대학교 ERICA 자작자동차 학회 **baqu4**
 
 ## 먼저 볼 자료
 
